@@ -1,0 +1,30 @@
+[default]
+[private]
+list:
+    just --list --unsorted
+
+# Delete all bytecode and cache files
+clean:
+    @find . -name "*.py[co]" -delete
+    @find . -name "__pycache__" -type d -exec rm -rf {} +
+    @find . -name ".*_cache" -type d -exec rm -rf {} +
+
+# Lint and format all Python files
+[group("hygiene")]
+ruff:
+    ruff format
+    ruff check --fix
+
+alias pyrefly := typecheck
+
+# Type check all Python files
+[group("hygiene")]
+typecheck:
+    pyrefly check .
+
+# Validate hygiene of all Python files
+[group("hygiene")]
+validate:
+    ruff format --check
+    ruff check .
+    @just typecheck
