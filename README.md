@@ -1,5 +1,10 @@
 # GPC: A Framework for World-Model-Based Generative Control
 
+[![PyPI](https://img.shields.io/pypi/v/gpclib)](https://pypi.org/project/gpclib/)
+[![CI](https://img.shields.io/github/actions/workflow/status/alexander-brady/gpc/ci.yml?branch=main&label=CI)](https://github.com/alexander-brady/gpc/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/github/actions/workflow/status/alexander-brady/gpc/docs.yml?branch=main&label=docs)](https://alexander-brady.github.io/gpc/)
+[![License: MIT](https://img.shields.io/github/license/alexander-brady/gpc)](LICENSE)
+
 **GPC** is a framework for world-model-based Generative Predictive Control.
 
 A GPC controller combines three components:
@@ -13,7 +18,8 @@ then executes it in the environment.
 
 ## Installation
 
-GPC requires Python 3.12 or newer.
+GPC requires Python 3.12 or newer. It is lightweight, with PyTorch as its only substantial
+dependency, so it drops into existing training and robotics stacks easily.
 
 ```bash
 uv add gpclib    # or: pip install gpclib
@@ -34,7 +40,7 @@ for step in range(100):
     action = controller.act(frames, proprio=proprio, goal=goal)  # [B, A]
 ```
 
-See the [quickstart](docs/quickstart/index.md) for full examples and the
+See the [quickstart](https://alexander-brady.github.io/gpc/quickstart/) for full examples and the
 [API reference](https://alexander-brady.github.io/gpc/api/gpc/) for details.
 
 ## Development
