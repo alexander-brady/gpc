@@ -1,5 +1,5 @@
 [project]
-name = "gpc"
+name = "gpclib"
 version = "0.1.0"
 description = "World-Model-Based Generative Control"
 readme = "README.md"
