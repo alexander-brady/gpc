@@ -18,13 +18,13 @@ GPC requires Python 3.12 or newer.
 === "uv"
 
     ```bash
-    uv add gpc
+    uv add gpclib
     ```
 
 === "pip"
 
     ```bash
-    pip install gpc
+    pip install gpclib
     ```
 
 ## Next steps

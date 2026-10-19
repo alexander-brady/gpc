@@ -16,7 +16,7 @@ then executes it in the environment.
 GPC requires Python 3.12 or newer.
 
 ```bash
-uv add gpc    # or: pip install gpc
+uv add gpclib    # or: pip install gpclib
 ```
 
 ## Quick start
