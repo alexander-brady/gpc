@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/gpclib)](https://pypi.org/project/gpclib/)
 [![CI](https://img.shields.io/github/actions/workflow/status/alexander-brady/gpc/ci.yml?branch=main&label=CI)](https://github.com/alexander-brady/gpc/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/github/actions/workflow/status/alexander-brady/gpc/docs.yml?branch=main&label=docs)](https://alexander-brady.github.io/gpc/)
+[![Python](https://img.shields.io/pypi/pyversions/gpclib)](https://pypi.org/project/gpclib/)
 [![License: MIT](https://img.shields.io/github/license/alexander-brady/gpc)](LICENSE)
 
 **GPC** is a framework for world-model-based Generative Predictive Control.
