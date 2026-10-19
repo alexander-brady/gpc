@@ -28,3 +28,18 @@ validate:
     ruff format --check
     ruff check .
     @just typecheck
+
+# Run the full test suite with coverage
+[group("test")]
+test *args:
+    pytest --cov --cov-report=term-missing {{args}}
+
+# Run specific tests with coverage
+[group("test")]
+test-one target *args:
+    pytest --cov --cov-report=term-missing {{target}} {{args}}
+
+# Run the test suite and write an HTML coverage report to htmlcov/
+[group("test")]
+coverage:
+    pytest --cov --cov-report=html --cov-report=term

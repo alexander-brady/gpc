@@ -47,19 +47,6 @@ class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
             Tensor[[B, F, D...]]: Latent frames
         """
 
-    def encode_actions[B: IntVar, F: IntVar](
-        self, actions: Tensor[[B, F, int]]
-    ) -> Tensor[[B, F, int]]:
-        """Encode environment actions into the world model's action space.
-
-        Args:
-            actions (Tensor[[B, F, A]]): Environment actions
-
-        Returns:
-            Tensor[[B, F, A]]: Model actions
-        """
-        return actions
-
     def decode[B: IntVar, F: IntVar](
         self, latents: Tensor[[B, F, *Elements[D]]]
     ) -> Tensor[[B, F, int, int, int]]:

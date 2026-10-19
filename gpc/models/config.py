@@ -9,10 +9,6 @@ from shape_extensions import Int, IntVar
 class Config:
     """Base configuration class for models."""
 
-    def __init_subclass__(cls, *args, **kwargs):
-        super().__init_subclass__(*args, **kwargs)
-        cls = dataclass(kw_only=True)(cls)
-
 
 @dataclass(kw_only=True)
 class WorldModelConfig[K: IntVar, T: IntVar](Config):

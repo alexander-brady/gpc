@@ -14,3 +14,8 @@ wheels/
 
 # Cache files
 .*_cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
