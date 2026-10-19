@@ -43,3 +43,14 @@ test-one target *args:
 [group("test")]
 coverage:
     pytest --cov --cov-report=html --cov-report=term
+
+# Serve the docs locally with live reload
+[no-exit-message]
+[group("docs")]
+docs:
+    uv run --group docs zensical serve
+
+# Build the docs into site/
+[group("docs")]
+docs-build:
+    uv run --group docs zensical build --clean

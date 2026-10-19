@@ -19,3 +19,6 @@ wheels/
 .coverage
 .coverage.*
 htmlcov/
+
+# Docs
+site/
