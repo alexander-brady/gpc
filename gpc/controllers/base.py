@@ -70,7 +70,7 @@ class GPC(ABC):
         self._proprio.extend(proprio.unbind(dim=1))
 
         # Replan when the action chunk is exhausted
-        if self._pending is None or self._action_index >= len(self._pending):
+        if self._pending is None or self._action_index >= self._pending.shape[1]:
             frames = torch.stack(list(self._frames), dim=1)
             proprio = torch.stack(list(self._proprio), dim=1)
 

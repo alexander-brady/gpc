@@ -26,7 +26,9 @@ class WorldModelConfig[K: IntVar, T: IntVar](Config):
 
 @dataclass(kw_only=True)
 class PolicyConfig[K: IntVar, T: IntVar](Config):
+    """Configuration class for policies."""
+
     observation_horizon: Int[K]
     """Number of past timesteps to condition on when planning actions."""
-    action_horizon: Int[T]
+    prediction_horizon: Int[T]
     """Number of future timesteps to plan actions for."""

@@ -14,9 +14,9 @@ class Policy[K: IntVar, T: IntVar](ABC, nn.Module):
     the agent's own low-dimensional state (e.g. its position); actions are [B, T, A].
     All are in the policy's own normalized space.
 
-    The policy conditions on the latest K observations and is meant to
-    execute T actions of each plan before replanning, creating
-    N samples of planned actions for each input observation sequence.
+    The policy conditions on the latest K observations and plans the next T actions.
+    Sampling should be stochastic: controllers draw several plans per observation
+    sequence and choose among them.
     """
 
     def __init__(self, config: PolicyConfig[K, T]):
@@ -29,9 +29,9 @@ class Policy[K: IntVar, T: IntVar](ABC, nn.Module):
         return self.config.observation_horizon
 
     @property
-    def action_horizon(self) -> int:
-        """Number of frames T the policy predicts per pass."""
-        return self.config.action_horizon
+    def prediction_horizon(self) -> int:
+        """Number of actions T the policy plans per pass."""
+        return self.config.prediction_horizon
 
     @abstractmethod
     def sample[B: IntVar](

@@ -8,6 +8,7 @@ from shape_extensions import Elements, IntTuple, IntVar
 from torch import Tensor
 
 from gpc.models.config import WorldModelConfig
+from gpc.trajectory import fit_horizon
 
 
 class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
@@ -40,7 +41,7 @@ class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
         """Encode environment frames into the world model's latent space.
 
         Args:
-            pixels (Tensor[[B, F, H, W, C]]): Environment frames
+            frames (Tensor[[B, F, C, H, W]]): Environment frames
 
         Returns:
             Tensor[[B, F, D...]]: Latent frames
@@ -68,7 +69,7 @@ class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
             latents (Tensor[[B, F, D...]]): Latent frames
 
         Returns:
-            Tensor[[B, F, H, W, C]]: Environment frames
+            Tensor[[B, F, C, H, W]]: Environment frames
         """
         raise NotImplementedError("Decoding is not implemented for this world model.")
 
@@ -91,6 +92,7 @@ class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
     ) -> Tensor[[B, F, *Elements[D]]]:
         """Predict an arbitrary number of future frames autoregressively.
         Each pass predicts T frames, conditioned on the latest K frames.
+        A history shorter than K is left-padded by repeating its earliest frame.
 
         Args:
             history (Tensor[[B, K, D...]]): Context latent frames
@@ -99,7 +101,7 @@ class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
         Returns:
             Tensor[[B, F, D...]]: Predicted latent trajectory
         """
-        context: Tensor[[B, K, *Elements[D]]] = history
+        context: Tensor[[B, K, *Elements[D]]] = fit_horizon(history, self.context_horizon)
         predictions = []
         for chunk in actions.split(self.prediction_horizon, dim=1):
             predicted = self.predict(context, chunk)

@@ -5,6 +5,7 @@ from torch import Tensor
 from gpc.controllers.base import GPC
 from gpc.models import Policy, WorldModel
 from gpc.objectives import Objective
+from gpc.trajectory import fit_horizon
 
 
 class GPCRank[N: IntVar](GPC):
@@ -47,6 +48,9 @@ class GPCRank[N: IntVar](GPC):
         proprio: Tensor[[B, K, int]],
     ) -> Tensor[[B, N, int, int]]:
         """Sample ``num_samples`` candidate action trajectories [B, N, T, A]."""
+        h = self.policy.observation_horizon
+        frames, proprio = fit_horizon(frames, h), fit_horizon(proprio, h)
+
         n = self.num_samples
         plans = self.policy.sample(frames.repeat_interleave(n, 0), proprio.repeat_interleave(n, 0))
         plans = plans.reshape(-1, n, *plans.shape[1:])
