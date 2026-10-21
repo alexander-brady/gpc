@@ -9,6 +9,16 @@ clean:
     @find . -name "__pycache__" -type d -exec rm -rf {} +
     @find . -name ".*_cache" -type d -exec rm -rf {} +
 
+# Bump the version and trigger the publish workflow.
+[private]
+bump version:
+    uv version {{version}}
+    git add pyproject.toml
+    git add uv.lock
+    git commit -m "chore: bump version to {{version}}"
+    git tag -a "v{{version}}" -m "Release v{{version}}"
+    git push origin "v{{version}}"
+
 # Lint and format all Python files
 [group("hygiene")]
 ruff:
