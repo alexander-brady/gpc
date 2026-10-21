@@ -1,5 +1,7 @@
 """Helpers for time-indexed tensors laid out as [B, K, ...]."""
 
+from __future__ import annotations
+
 import torch
 from shape_extensions import Elements, Int, IntTuple, IntVar
 from torch import Tensor
