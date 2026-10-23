@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections import deque
 
 import torch
+import torch.nn as nn
 from shape_extensions import IntVar
 from torch import Tensor
 
@@ -11,7 +12,7 @@ from gpc.models import Policy, WorldModel
 from gpc.objectives import Objective
 
 
-class GPC(ABC):
+class GPC(ABC, nn.Module):
     """Abstract base class for a Generative Predictive Control (GPC) controller.
 
     Attributes:
@@ -29,6 +30,8 @@ class GPC(ABC):
         *,
         action_horizon: int = 1,
     ):
+        super().__init__()
+
         if action_horizon <= 0:
             raise ValueError("action_horizon must be a positive integer.")
 
@@ -37,7 +40,7 @@ class GPC(ABC):
         self.objective = objective
         self.action_horizon = action_horizon
 
-        self.history_size = max(self.policy.observation_horizon, self.world_model.context_horizon)
+        self.history_size = max(policy.observation_horizon, world_model.context_horizon)
 
         self.reset()
 
