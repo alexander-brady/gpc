@@ -42,6 +42,6 @@ The base class also provides:
 | Method | Default behaviour |
 | ------ | ----------------- |
 | `rollout(history, actions)` | Predicts any number of steps by calling `predict` on chunks of `prediction_horizon` actions, each conditioned on the latest `context_horizon` latents. |
-| `decode(latents)` | Raises `NotImplementedError`. Override it to turn latents back into frames, e.g. for visualization. |
+| `decode(latents)` | Raises `NotImplementedError`. Override it to turn latents back into frames, e.g. for visualization or a [`frame_objective`][gpc.objectives.frame_objective]. |
 
 Next, define an [objective](objective.md) that scores the simulated futures.

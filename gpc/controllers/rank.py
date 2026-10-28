@@ -78,5 +78,5 @@ class GPCRank[N: IntVar](GPC):
         if frames.shape[1] == 1 and not self.rank_first_step:
             return plans[:, 0]
         # The first maximum wins ties.
-        best = self.objective(frames, plans, goal).argmax(dim=1)
+        best = self.score(self.simulate(frames, plans), goal, plans).argmax(dim=1)
         return plans[torch.arange(plans.shape[0]), best]

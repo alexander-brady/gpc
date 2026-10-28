@@ -24,7 +24,7 @@ class FakePolicy(Policy):
 
 
 class FakeWorldModel(WorldModel):
-    """Latent = flattened frame mean; prediction echoes the actions, recording each context."""
+    """Latent = flattened frame mean; prediction = per-step action sum, recording each context."""
 
     def __init__(self, config: WorldModelConfig):
         super().__init__(config)
@@ -35,18 +35,28 @@ class FakeWorldModel(WorldModel):
 
     def predict(self, history: Tensor, actions: Tensor) -> Tensor:
         self.contexts.append(history)
-        return actions
+        return actions.sum(dim=-1, keepdim=True)
+
+
+class DecodingWorldModel(FakeWorldModel):
+    """FakeWorldModel that decodes each latent into a frame filled with its first element."""
+
+    def decode(self, latents: Tensor) -> Tensor:
+        return latents[..., :1, None, None].expand(*latents.shape[:-1], C, H, W)
 
 
 class SumObjective:
-    """Scores each plan by the sum of its actions, recording the calls it receives."""
+    """Scores each future by the sum of its elements, recording the calls it receives.
+    With FakeWorldModel, the latent future sums each step's actions, so this sums the plan."""
 
     def __init__(self):
-        self.calls: list[tuple[Tensor, Tensor, Tensor | None]] = []
+        self.calls: list[tuple[Tensor, Tensor | None, Tensor | None]] = []
 
-    def __call__(self, frames: Tensor, plans: Tensor, goal: Tensor | None) -> Tensor:
-        self.calls.append((frames, plans, goal))
-        return plans.sum(dim=(2, 3))
+    def __call__(
+        self, futures: Tensor, goal: Tensor | None, *, plans: Tensor | None = None
+    ) -> Tensor:
+        self.calls.append((futures, goal, plans))
+        return futures.flatten(2).sum(dim=-1)
 
 
 class StubGPC(GPC):

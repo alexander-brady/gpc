@@ -1,9 +1,12 @@
 import pytest
 import torch
+from torch import nn
 from torch.testing import assert_close
 
 from gpc import GPCRank
-from tests.fakes import A, B, make_obs, step
+from gpc.models import WorldModelConfig
+from gpc.objectives import frame_objective, latent_objective
+from tests.fakes import A, B, C, DecodingWorldModel, H, SumObjective, W, make_obs, step
 
 N = 4
 
@@ -56,19 +59,100 @@ def test_plan_picks_highest_scoring_proposal(rank, objective):
 
     plan = rank.plan(frames, proprio, goal)
 
-    _, plans, seen_goal = objective.calls[0]
+    futures, seen_goal, seen_plans = objective.calls[0]
     assert seen_goal is goal
-    best = objective(frames, plans, goal).argmax(dim=1)
-    assert_close(plan, plans[torch.arange(B), best])
+    plans = rank._propose(frames, proprio)
+    assert_close(seen_plans, plans)
+    # FakeWorldModel predicts each step's action sum
+    assert_close(futures, plans.sum(dim=-1, keepdim=True))
     # FakePolicy assigns strictly increasing actions, so the last proposal scores highest
     assert_close(plan, plans[:, -1])
 
 
 def test_plan_ties_resolve_to_first_maximum(policy, world_model):
-    tie = lambda f, p, g: torch.zeros(p.shape[:2])  # noqa: E731
+    tie = lambda f, g: torch.zeros(f.shape[:2])  # noqa: E731
     rank = GPCRank(policy, world_model, tie, num_samples=N)  # pyrefly: ignore[bad-argument-type]
     frames, proprio = make_obs(k=2)
     assert_close(rank.plan(frames, proprio), rank._propose(frames, proprio)[:, 0])
+
+
+def test_objective_receives_latent_futures(rank, objective, policy):
+    rank.plan(*make_obs(k=2))
+    futures, _, _ = objective.calls[0]
+    assert futures.shape == (B, N, policy.prediction_horizon, 1)
+
+
+def test_frame_objective_receives_frames(policy):
+    world_model = DecodingWorldModel(WorldModelConfig(context_horizon=3, prediction_horizon=2))
+    objective = frame_objective(SumObjective())
+    rank = GPCRank(policy, world_model, objective, num_samples=N)
+
+    rank.plan(*make_obs(k=2))
+    futures, _, _ = objective.calls[0]
+    assert futures.shape == (B, N, policy.prediction_horizon, C, H, W)
+
+
+def test_frame_function_objective(policy):
+    world_model = DecodingWorldModel(WorldModelConfig(context_horizon=3, prediction_horizon=2))
+    seen = []
+
+    @frame_objective
+    def objective(futures, goal):
+        seen.append(futures)
+        return futures.flatten(2).sum(dim=-1)
+
+    GPCRank(policy, world_model, objective, num_samples=N).plan(*make_obs(k=2))
+    assert seen[0].shape[3:] == (C, H, W)
+
+
+def test_frame_class_objective(policy):
+    world_model = DecodingWorldModel(WorldModelConfig(context_horizon=3, prediction_horizon=2))
+
+    @frame_objective
+    class Objective(SumObjective):
+        pass
+
+    objective = Objective()
+    GPCRank(policy, world_model, objective, num_samples=N).plan(*make_obs(k=2))
+    assert objective.calls[0][0].shape[3:] == (C, H, W)
+
+
+def test_frame_objective_requires_decoding_world_model(policy, world_model):
+    with pytest.raises(ValueError, match="decode"):
+        GPCRank(policy, world_model, frame_objective(SumObjective()))
+
+
+def test_objective_without_plans_is_called_without_them(policy, world_model):
+    calls = []
+
+    def objective(futures, goal):
+        calls.append((futures, goal))
+        return futures.flatten(2).sum(dim=-1)
+
+    GPCRank(policy, world_model, objective, num_samples=N).plan(*make_obs(k=2))
+    assert len(calls) == 1
+
+
+def test_module_objective_receives_plans_via_forward(policy, world_model):
+    class Penalty(nn.Module):
+        def forward(self, futures, goal, *, plans):
+            self.plans = plans
+            return -plans.square().sum(dim=(2, 3))
+
+    objective = Penalty()
+    rank = GPCRank(policy, world_model, objective, num_samples=N)
+    frames, proprio = make_obs(k=2)
+    plan = rank.plan(frames, proprio)
+
+    assert_close(objective.plans, rank._propose(frames, proprio))
+    # FakePolicy's actions grow with the proposal index, so the first has the least effort
+    assert_close(plan, objective.plans[:, 0])
+
+
+def test_latent_objective_receives_latents(policy, world_model):
+    objective = latent_objective(SumObjective())
+    GPCRank(policy, world_model, objective, num_samples=N).plan(*make_obs(k=2))
+    assert objective.calls[0][0].shape[3:] == (1,)
 
 
 def test_single_frame_skips_ranking_by_default(rank, objective):

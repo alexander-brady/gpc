@@ -9,7 +9,8 @@ from shape_extensions import IntVar
 from torch import Tensor
 
 from gpc.models import Policy, WorldModel
-from gpc.objectives import Objective
+from gpc.objectives import Objective, accepts_plans, is_frame_objective
+from gpc.trajectory import fit_horizon
 
 
 class GPC(ABC, nn.Module):
@@ -34,6 +35,8 @@ class GPC(ABC, nn.Module):
 
         if action_horizon <= 0:
             raise ValueError("action_horizon must be a positive integer.")
+        if is_frame_objective(objective) and type(world_model).decode is WorldModel.decode:
+            raise ValueError("A frame objective requires a world model that implements decode.")
 
         self.policy = policy
         self.world_model = world_model
@@ -86,6 +89,50 @@ class GPC(ABC, nn.Module):
         self._action_index += 1
 
         return action
+
+    def simulate[B: IntVar, N: IntVar](
+        self,
+        frames: Tensor[[B, int, int, int, int]],
+        plans: Tensor[[B, N, int, int]],
+    ) -> Tensor:
+        """Roll out each candidate plan with the world model, in the space the objective scores.
+
+        Args:
+            frames (Tensor[B, K, C, H, W]): observed frames to condition on
+            plans (Tensor[B, N, T, A]): candidate action sequences
+
+        Returns:
+            Tensor[B, N, T, ...]: predicted latents [B, N, T, D...], or frames
+                [B, N, T, C, H, W] for a frame objective.
+        """
+        batch, num_plans = plans.shape[:2]
+        history = self.world_model.encode(fit_horizon(frames, self.world_model.context_horizon))
+        history = history.repeat_interleave(num_plans, dim=0)
+        futures = self.world_model.rollout(history, plans.flatten(0, 1))
+        if is_frame_objective(self.objective):
+            futures = self.world_model.decode(futures)
+        return futures.unflatten(0, (batch, num_plans))
+
+    def score[B: IntVar, N: IntVar](
+        self,
+        futures: Tensor,
+        goal: Tensor[[B, int]] | None,
+        plans: Tensor[[B, N, int, int]],
+    ) -> Tensor[[B, N]]:
+        """Score simulated futures with the objective, passing the plans if it accepts them.
+
+        Args:
+            futures (Tensor[B, N, T, ...]): futures from [`simulate`](gpc.controllers.base.GPC.simulate)
+            goal (Tensor[B, GoalDim] | None): the optional goal to evaluate against
+            plans (Tensor[B, N, T, A]): the candidate plans that produced the futures
+
+        Returns:
+            Tensor[B, N]: one score per batch and plan.
+        """
+        objective = self.objective
+        if accepts_plans(objective):
+            return objective(futures, goal, plans=plans)
+        return objective(futures, goal)
 
     @abstractmethod
     def plan[B: IntVar, K: IntVar](

@@ -1,4 +1,6 @@
 [project]
+# Build-time tooling, not pages
+exclude_docs = "extensions/"
 site_url = "https://alexander-brady.github.io/gpc"
 site_name = "GPC"
 site_description = "World-Model-Based Generative Control"
@@ -124,6 +126,7 @@ paths = ["."]
 inventories = ["https://docs.python.org/3/objects.inv"]
 
 [project.plugins.mkdocstrings.handlers.python.options]
+extensions = ["docs/extensions/crossrefs.py:Crossrefs"]
 docstring_style = "google"
 heading_level = 2
 members_order = "source"
