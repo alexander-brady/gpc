@@ -147,4 +147,6 @@ plan = controller.plan(frames, proprio, goal)  # [B, T, A]
 
 ## Next steps
 
-See the [API reference](../api/gpc/index.md) for every class and option used above.
+To save the controller or push it to the Hugging Face Hub, see
+[Sharing on the Hub](hub.md). See the [API reference](../api/gpc/index.md) for every class
+and option used above.

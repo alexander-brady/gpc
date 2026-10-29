@@ -17,6 +17,7 @@ nav = [
     { "World model" = "quickstart/world-model.md" },
     { "Objective" = "quickstart/objective.md" },
     { "Controller" = "quickstart/controller.md" },
+    { "Sharing on the Hub" = "quickstart/hub.md" },
   ] },
 ]
 

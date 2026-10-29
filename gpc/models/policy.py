@@ -6,10 +6,11 @@ import torch.nn as nn
 from shape_extensions import IntVar
 from torch import Tensor
 
+from gpc.hub import HubMixin
 from gpc.models.config import PolicyConfig
 
 
-class Policy[K: IntVar, T: IntVar](ABC, nn.Module):
+class Policy[K: IntVar, T: IntVar](ABC, nn.Module, HubMixin):
     """Abstract base class for visuomotor policies that plan action chunks.
 
     Observations are frames [B, K, C, H, W] and optionally proprioception [B, K, P],
@@ -19,7 +20,15 @@ class Policy[K: IntVar, T: IntVar](ABC, nn.Module):
     The policy conditions on the latest K observations and plans the next T actions.
     Sampling should be stochastic: controllers draw several plans per observation
     sequence and choose among them.
+
+    Saved to the ``policy/`` subfolder of a Hub repo with ``save_pretrained`` or
+    ``push_to_hub``; ``Policy.from_pretrained`` returns the saved subclass. A subclass with
+    its own config sets ``config_class`` to it (see [`HubMixin`](gpc.hub.HubMixin)).
     """
+
+    config_class = PolicyConfig
+    config: PolicyConfig[K, T]
+    hub_subfolder = "policy"
 
     def __init__(self, config: PolicyConfig[K, T]):
         super().__init__()

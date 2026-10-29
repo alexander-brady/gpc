@@ -1,11 +1,12 @@
 # Quickstart
 
-This series builds a working GPC controller from scratch in four steps:
+This series builds a working GPC controller from scratch in four steps, then shows how to share it:
 
 1. [Policy](policy.md): propose candidate action plans from recent observations.
 2. [World model](world-model.md): simulate the future each plan leads to.
 3. [Objective](objective.md): score those simulated futures against a goal.
 4. [Controller](controller.md): wire the three together and run a control loop.
+5. [Sharing on the Hub](hub.md): push and pull models and controllers.
 
 Each step builds on the previous one, so the code snippets are meant to be run in order,
 in a single script or notebook.

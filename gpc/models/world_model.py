@@ -7,18 +7,26 @@ import torch.nn as nn
 from shape_extensions import Elements, IntTuple, IntVar
 from torch import Tensor
 
+from gpc.hub import HubMixin
 from gpc.models.config import WorldModelConfig
 from gpc.trajectory import fit_horizon
 
 
-class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module):
+class WorldModel[K: IntVar, T: IntVar, D: IntTuple](ABC, nn.Module, HubMixin):
     """Abstract base class for action-conditioned world models.
 
     Frames are laid out as [B, K, D...] and actions as trajectory [B, T, int],
     predicting up to T future latent frames per pass. Long horizons can be handled
     with :meth:`rollout`, which predicts autoregressively in chunks of T frames,
     conditioned on the latest K frames.
+
+    Saved to the ``world_model/`` subfolder of a Hub repo with ``save_pretrained`` or
+    ``push_to_hub``; ``WorldModel.from_pretrained`` returns the saved subclass. A subclass
+    with its own config sets ``config_class`` to it (see [`HubMixin`](gpc.hub.HubMixin)).
     """
+
+    config_class = WorldModelConfig
+    hub_subfolder = "world_model"
 
     def __init__(self, config: WorldModelConfig[K, T]):
         super().__init__()

@@ -1,26 +1,30 @@
 """Shared minimal fakes for the abstract GPC components."""
 
+from dataclasses import dataclass
+
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from gpc.controllers.base import GPC
-from gpc.models import Policy, PolicyConfig, WorldModel, WorldModelConfig
+from gpc.models import Config, Policy, PolicyConfig, WorldModel, WorldModelConfig
+from gpc.objectives import ObjectiveModule
 
 B, C, H, W, P, A = 2, 3, 4, 4, 5, 2
 
 
 class FakePolicy(Policy):
-    """Returns a distinct, deterministic plan per batch row: arange(B*T*A).
+    """Returns a distinct, deterministic plan per batch row: arange(B*T*A) + offset.
     Records the observations it is sampled with."""
 
     def __init__(self, config: PolicyConfig):
         super().__init__(config)
+        self.offset = nn.Parameter(torch.zeros(()))
         self.calls: list[tuple[Tensor, Tensor]] = []
 
     def sample(self, frames: Tensor, proprio: Tensor) -> Tensor:
         self.calls.append((frames, proprio))
         b, t = frames.shape[0], self.prediction_horizon
-        return torch.arange(b * t * A, dtype=torch.float).reshape(b, t, A)
+        return torch.arange(b * t * A, dtype=torch.float).reshape(b, t, A) + self.offset
 
 
 class FakeWorldModel(WorldModel):
@@ -84,3 +88,31 @@ def step(gpc: GPC, fill: float = 0.0, goal: Tensor | None = None) -> Tensor:
     """Feed a single-frame observation to the controller and return its action."""
     frames, proprio = make_obs(fill=fill)
     return gpc.act(frames, proprio=proprio, goal=goal)
+
+
+def total_objective(futures: Tensor, goal: Tensor | None) -> Tensor:
+    """Module-level objective, saved by reference."""
+    return futures.flatten(2).sum(dim=-1)
+
+
+def scaled_objective(futures: Tensor, goal: Tensor | None, *, scale: float = 1.0) -> Tensor:
+    """Parameterized objective, saved as a ``functools.partial``."""
+    return scale * futures.flatten(2).sum(dim=-1)
+
+
+@dataclass(kw_only=True)
+class WeightedObjectiveConfig(Config):
+    scale: float = 1.0
+
+
+class WeightedObjective(ObjectiveModule):
+    """Module objective with a setting and a weight, saved to ``objective/``."""
+
+    config_class = WeightedObjectiveConfig
+
+    def __init__(self, config: WeightedObjectiveConfig | None = None):
+        super().__init__(config)
+        self.weight = nn.Parameter(torch.ones(()))
+
+    def forward(self, futures: Tensor, goal: Tensor | None) -> Tensor:
+        return self.config.scale * self.weight * futures.flatten(2).sum(dim=-1)
