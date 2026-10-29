@@ -119,6 +119,35 @@ def test_world_model_parameters_receive_no_gradients(policy, world_model, object
     assert world_model.scale.grad is None
 
 
+def test_parameters_frozen_during_optimization_and_restored(policy, world_model, objective):
+    world_model.scale = nn.Parameter(torch.ones(()))
+    world_model.fixed = nn.Parameter(torch.ones(()), requires_grad=False)
+    seen = []
+    predict = world_model.predict
+
+    def recording_predict(history, actions):
+        seen.append(world_model.scale.requires_grad)
+        return predict(history, actions) * world_model.scale
+
+    world_model.predict = recording_predict  # pyrefly: ignore
+    GPCOpt(policy, world_model, objective, num_steps=M).plan(*make_obs(k=2))
+
+    assert seen and not any(seen)
+    assert world_model.scale.requires_grad
+    assert not world_model.fixed.requires_grad
+    assert all(p.requires_grad for p in policy.parameters())
+
+
+def test_parameters_restored_when_optimization_raises(policy, world_model, objective):
+    def failing(futures, goal):
+        raise RuntimeError("boom")
+
+    opt = GPCOpt(policy, world_model, failing, num_steps=M)  # pyrefly: ignore[bad-argument-type]
+    with pytest.raises(RuntimeError, match="boom"):
+        opt.plan(*make_obs(k=2))
+    assert all(p.requires_grad for p in opt.parameters())
+
+
 def test_single_frame_skips_optimization_by_default(opt, objective):
     frames, proprio = make_obs(k=1)
     plan = opt.plan(frames, proprio)

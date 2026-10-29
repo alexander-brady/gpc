@@ -1,14 +1,28 @@
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 
 import torch
 from shape_extensions import IntVar
-from torch import Tensor, autograd
+from torch import Tensor, autograd, nn
 from torch.optim import SGD, Optimizer
 
 from gpc.controllers.base import GPC
 from gpc.models import Policy, WorldModel
 from gpc.objectives import Objective
 from gpc.trajectory import fit_horizon
+
+
+@contextmanager
+def frozen(module: nn.Module) -> Generator[None]:
+    """Disable gradients on the module's trainable parameters, restoring them on exit."""
+    params = [p for p in module.parameters() if p.requires_grad]
+    for p in params:
+        p.requires_grad_(False)
+    try:
+        yield
+    finally:
+        for p in params:
+            p.requires_grad_(True)
 
 
 class GPCOpt(GPC):
@@ -75,7 +89,8 @@ class GPCOpt(GPC):
         """Refine each candidate plan independently by ``num_steps`` steps of gradient ascent
         on its score.
 
-        Only the plans are optimized: no gradients are accumulated on any parameters.
+        Only the plans are optimized: the controller's parameters are frozen meanwhile, so
+        autograd neither accumulates their gradients nor keeps activations to compute them.
 
         Args:
             frames (Tensor[B, K, C, H, W]): observed frames to condition on
@@ -89,7 +104,7 @@ class GPCOpt(GPC):
             context = self.encode_context(frames)
         plans = plans.detach().clone().requires_grad_(True)
         optimizer = self.optimizer([plans], lr=self.step_size)
-        with torch.enable_grad():
+        with torch.enable_grad(), frozen(self):
             for _ in range(self.num_steps):
                 # Plans are scored independently, so the gradient of the summed score with
                 # respect to each plan is that plan's own score gradient.
