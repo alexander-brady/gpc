@@ -50,6 +50,9 @@ class GPC(ABC, nn.Module, HubBase):
     [`from_pretrained`](gpc.controllers.base.GPC.from_pretrained)). A subclass must store
     each constructor argument as an attribute of the same name.
 
+    Components are put in evaluation mode when the controller is built, as
+    ``from_pretrained`` does, so dropout and batch norm don't perturb planning.
+
     Attributes:
         policy (Policy): The generative policy model used for action selection.
         world_model (WorldModel): World model used for predicting future states.
@@ -79,6 +82,7 @@ class GPC(ABC, nn.Module, HubBase):
 
         self.history_size = max(policy.observation_horizon, world_model.context_horizon)
 
+        self.eval()
         self.reset()
 
     def reset(self) -> None:

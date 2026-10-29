@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from gpc.controllers.base import GPC
-from tests.fakes import A, B, StubGPC, make_obs, step
+from tests.fakes import A, B, StubGPC, WeightedObjective, make_obs, step
 
 
 @pytest.fixture
@@ -19,6 +19,16 @@ def test_base_is_abstract(policy, world_model, objective):
 def test_rejects_non_positive_action_horizon(policy, world_model, objective, action_horizon):
     with pytest.raises(ValueError, match="action_horizon"):
         StubGPC(policy, world_model, objective, action_horizon=action_horizon)
+
+
+def test_components_are_put_in_eval_mode(policy, world_model):
+    objective = WeightedObjective()
+    for module in (policy, world_model, objective):
+        module.train()
+
+    gpc = StubGPC(policy, world_model, objective)
+
+    assert not any(m.training for m in gpc.modules())
 
 
 def test_history_size_is_max_of_model_horizons(gpc):
