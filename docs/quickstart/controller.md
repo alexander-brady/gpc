@@ -6,7 +6,7 @@ plan. GPC defines a few strategies:
 | Controller | Strategy | Status |
 | ---------- | -------- | ------ |
 | [`GPCRank`][gpc.GPCRank] | Sample many plans from the policy and keep the best-scoring one. | Available |
-| `GPCOpt` | Refine a sampled plan by optimizing it against the objective. | Planned |
+| [`GPCOpt`][gpc.GPCOpt] | Refine a sampled plan by gradient ascent on the objective through the world model. | Available |
 | `GPCRankOpt` | Rank sampled plans, then refine the best one. | Planned |
 
 This guide uses `GPCRank`, the simplest of the three.
@@ -32,6 +32,40 @@ controller = GPCRank(
 | `num_samples` | `64` | Candidate plans sampled per replanning step. |
 | `spread` | `1.01` | Scales each candidate's distance from the candidates' mean. Values above `1` increase diversity; `1` leaves the samples unchanged. |
 | `rank_first_step` | `False` | Whether to rank when only one frame has been observed. If `False`, the first sampled plan is used. |
+
+### Optimizing a plan
+
+[`GPCOpt`][gpc.GPCOpt] samples a single plan from the policy as a warm start, then refines
+it with `num_steps` gradient steps that maximize the objective, differentiating through the
+world model (and its decoder, for a frame objective). It suits objectives that are smooth
+numerical rewards; [`GPCRank`][gpc.GPCRank] also works with non-differentiable ones.
+
+```python
+from gpc import GPCOpt
+
+controller = GPCOpt(
+    policy,
+    world_model,
+    objective,
+    action_horizon=4,
+    num_steps=25,
+    step_size=5e-3,
+)
+```
+
+| Argument | Default | Description |
+| -------- | ------- | ----------- |
+| `action_horizon` | `1` | Actions to execute from each plan before replanning. |
+| `num_steps` | `25` | Gradient steps per replanning step. `0` returns the policy's plan unchanged. |
+| `step_size` | `5e-3` | Learning rate passed to the optimizer. |
+| `optimizer` | `torch.optim.SGD` | Optimizer factory, called as `optimizer([plan], lr=step_size)`. Use e.g. `torch.optim.Adam`, or a `functools.partial` for other settings. |
+| `optimize_first_step` | `False` | Whether to optimize when only one frame has been observed. If `False`, the sampled plan is used. |
+
+!!! warning "Make the world model deterministic"
+
+    The gradients are only as reliable as the world model. Freeze any sampling noise at
+    inference time (e.g. fix a diffusion world model's initial noise), or the noisy gradients
+    destabilize the optimization.
 
 !!! note "Action horizon vs. prediction horizon"
 

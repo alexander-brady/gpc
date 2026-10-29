@@ -92,6 +92,14 @@ def test_frame_objective_receives_frames(policy):
     assert futures.shape == (B, N, policy.prediction_horizon, C, H, W)
 
 
+def test_simulate_returns_latents_for_frame_objective(policy):
+    world_model = DecodingWorldModel(WorldModelConfig(context_horizon=3, prediction_horizon=2))
+    rank = GPCRank(policy, world_model, frame_objective(SumObjective()), num_samples=N)
+    frames, proprio = make_obs(k=2)
+    futures = rank.simulate(rank.encode_context(frames), rank._propose(frames, proprio))
+    assert futures.shape == (B, N, policy.prediction_horizon, 1)
+
+
 def test_frame_function_objective(policy):
     world_model = DecodingWorldModel(WorldModelConfig(context_horizon=3, prediction_horizon=2))
     seen = []

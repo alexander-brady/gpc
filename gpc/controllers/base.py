@@ -5,7 +5,7 @@ from collections import deque
 
 import torch
 import torch.nn as nn
-from shape_extensions import IntVar
+from shape_extensions import Elements, IntTuple, IntVar
 from torch import Tensor
 
 from gpc.models import Policy, WorldModel
@@ -90,27 +90,34 @@ class GPC(ABC, nn.Module):
 
         return action
 
-    def simulate[B: IntVar, N: IntVar](
-        self,
-        frames: Tensor[[B, int, int, int, int]],
-        plans: Tensor[[B, N, int, int]],
-    ) -> Tensor:
-        """Roll out each candidate plan with the world model, in the space the objective scores.
+    def encode_context[B: IntVar](self, frames: Tensor[[B, int, int, int, int]]) -> Tensor:
+        """Encode the latest observed frames into the world model's context latents.
 
         Args:
             frames (Tensor[B, K, C, H, W]): observed frames to condition on
+
+        Returns:
+            Tensor[B, K', D...]: latents of the ``context_horizon`` latest frames.
+        """
+        return self.world_model.encode(fit_horizon(frames, self.world_model.context_horizon))
+
+    def simulate[B: IntVar, N: IntVar, T: IntVar, D: IntTuple](
+        self,
+        context: Tensor[[B, int, *Elements[D]]],
+        plans: Tensor[[B, N, T, int]],
+    ) -> Tensor[[B, N, T, *Elements[D]]]:
+        """Roll out each candidate plan with the world model.
+
+        Args:
+            context (Tensor[B, K, D...]): context latents from [`encode_context`](gpc.controllers.base.GPC.encode_context)
             plans (Tensor[B, N, T, A]): candidate action sequences
 
         Returns:
-            Tensor[B, N, T, ...]: predicted latents [B, N, T, D...], or frames
-                [B, N, T, C, H, W] for a frame objective.
+            Tensor[B, N, T, D...]: predicted latents.
         """
         batch, num_plans = plans.shape[:2]
-        history = self.world_model.encode(fit_horizon(frames, self.world_model.context_horizon))
-        history = history.repeat_interleave(num_plans, dim=0)
-        futures = self.world_model.rollout(history, plans.flatten(0, 1))
-        if is_frame_objective(self.objective):
-            futures = self.world_model.decode(futures)
+        context = context.repeat_interleave(num_plans, dim=0)
+        futures = self.world_model.rollout(context, plans.flatten(0, 1))
         return futures.unflatten(0, (batch, num_plans))
 
     def score[B: IntVar, N: IntVar](
@@ -119,10 +126,11 @@ class GPC(ABC, nn.Module):
         goal: Tensor[[B, int]] | None,
         plans: Tensor[[B, N, int, int]],
     ) -> Tensor[[B, N]]:
-        """Score simulated futures with the objective, passing the plans if it accepts them.
+        """Score simulated futures with the objective, decoding them into frames for a frame
+        objective and passing the plans if it accepts them.
 
         Args:
-            futures (Tensor[B, N, T, ...]): futures from [`simulate`](gpc.controllers.base.GPC.simulate)
+            futures (Tensor[B, N, T, D...]): latent futures from [`simulate`](gpc.controllers.base.GPC.simulate)
             goal (Tensor[B, GoalDim] | None): the optional goal to evaluate against
             plans (Tensor[B, N, T, A]): the candidate plans that produced the futures
 
@@ -130,6 +138,8 @@ class GPC(ABC, nn.Module):
             Tensor[B, N]: one score per batch and plan.
         """
         objective = self.objective
+        if is_frame_objective(objective):
+            futures = self.world_model.decode(futures.flatten(0, 1)).unflatten(0, plans.shape[:2])
         if accepts_plans(objective):
             return objective(futures, goal, plans=plans)
         return objective(futures, goal)
