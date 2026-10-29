@@ -81,13 +81,13 @@ def test_zero_steps_returns_proposal(policy, world_model, objective):
 def test_optimize_refines_each_candidate_independently(opt):
     frames, _ = make_obs(k=2)
     plans = torch.randn(B, 4, opt.policy.prediction_horizon, A)
-    assert_close(opt.optimize(frames, plans), plans + M * LR)
+    assert_close(opt.optimize(opt.encode_context(frames), plans), plans + M * LR)
 
 
 def test_optimize_does_not_modify_input(opt):
     frames, _ = make_obs(k=2)
     plans = torch.zeros(B, 1, opt.policy.prediction_horizon, A)
-    opt.optimize(frames, plans)
+    opt.optimize(opt.encode_context(frames), plans)
     assert_close(plans, torch.zeros_like(plans))
 
 

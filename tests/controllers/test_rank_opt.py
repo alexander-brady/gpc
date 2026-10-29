@@ -106,6 +106,14 @@ def test_optimize_first_step_optimizes_single_frame(policy, world_model, objecti
     assert len(objective.calls) == M + 1
 
 
+def test_plan_encodes_context_once(rank_opt, world_model):
+    calls = []
+    encode = world_model.encode
+    world_model.encode = lambda frames: calls.append(frames) or encode(frames)
+    rank_opt.plan(*make_obs(k=2))
+    assert len(calls) == 1
+
+
 def test_plan_does_not_track_gradients(rank_opt):
     frames, proprio = make_obs(k=2)
     assert not rank_opt.plan(frames.requires_grad_(), proprio).requires_grad

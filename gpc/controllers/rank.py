@@ -1,5 +1,5 @@
 import torch
-from shape_extensions import Int, IntVar
+from shape_extensions import Elements, Int, IntTuple, IntVar
 from torch import Tensor
 
 from gpc.controllers.base import GPC
@@ -53,16 +53,16 @@ class GPCRank[N: IntVar](GPC):
         return self.policy.clamp_actions(mean + self.spread * (plans - mean))
 
     @torch.no_grad()
-    def rank[B: IntVar](
+    def rank[B: IntVar, D: IntTuple](
         self,
-        frames: Tensor[[B, int, int, int, int]],
+        context: Tensor[[B, int, *Elements[D]]],
         plans: Tensor[[B, int, int, int]],
         goal: Tensor[[B, int]] | None = None,
     ) -> Tensor[[B, int, int]]:
         """Simulate each candidate plan and return the one whose future scores highest.
 
         Args:
-            frames (Tensor[B, K, C, H, W]): observed frames to condition on
+            context (Tensor[B, K, D...]): context latents from [`encode_context`](gpc.controllers.base.GPC.encode_context)
             plans (Tensor[B, N, T, A]): candidate plans to rank
             goal (Tensor[B, GoalDim] | None): the optional goal to evaluate against
 
@@ -70,7 +70,7 @@ class GPCRank[N: IntVar](GPC):
             Tensor[B, T, A]: the highest-scoring plan. The first maximum wins ties,
                 and NaN scores are treated as -inf.
         """
-        futures = self.simulate(self.encode_context(frames), plans)
+        futures = self.simulate(context, plans)
         scores = self.score(futures, goal, plans)
         best = scores.masked_fill(scores.isnan(), -torch.inf).argmax(dim=1)
         return plans[torch.arange(plans.shape[0]), best]
@@ -94,4 +94,5 @@ class GPCRank[N: IntVar](GPC):
         """
         if frames.shape[1] == 1 and not self.rank_first_step:
             return self._sample(frames, proprio)[:, 0]
-        return self.rank(frames, self._propose(frames, proprio), goal)
+        plans = self._propose(frames, proprio)
+        return self.rank(self.encode_context(frames), plans, goal)

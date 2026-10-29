@@ -2,7 +2,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
 import torch
-from shape_extensions import IntVar
+from shape_extensions import Elements, IntTuple, IntVar
 from torch import Tensor, autograd, nn
 from torch.optim import SGD, Optimizer
 
@@ -69,9 +69,9 @@ class GPCOpt(GPC):
         self.optimizer = optimizer
         self.optimize_first_step = optimize_first_step
 
-    def optimize[B: IntVar, N: IntVar](
+    def optimize[B: IntVar, N: IntVar, D: IntTuple](
         self,
-        frames: Tensor[[B, int, int, int, int]],
+        context: Tensor[[B, int, *Elements[D]]],
         plans: Tensor[[B, N, int, int]],
         goal: Tensor[[B, int]] | None = None,
     ) -> Tensor[[B, N, int, int]]:
@@ -82,15 +82,14 @@ class GPCOpt(GPC):
         autograd neither accumulates their gradients nor keeps activations to compute them.
 
         Args:
-            frames (Tensor[B, K, C, H, W]): observed frames to condition on
+            context (Tensor[B, K, D...]): context latents from [`encode_context`](gpc.controllers.base.GPC.encode_context)
             plans (Tensor[B, N, T, A]): candidate plans to start from
             goal (Tensor[B, GoalDim] | None): the optional goal to optimize towards
 
         Returns:
             Tensor[B, N, T, A]: the optimized plans, detached from the graph.
         """
-        with torch.no_grad():
-            context = self.encode_context(frames)
+        context = context.detach()
         plans = plans.detach().clone().requires_grad_(True)
         optimizer = self.optimizer([plans], lr=self.step_size)
         with torch.enable_grad(), frozen(self):
@@ -125,4 +124,4 @@ class GPCOpt(GPC):
         plans = self._sample(frames, proprio)
         if frames.shape[1] == 1 and not self.optimize_first_step:
             return plans[:, 0]
-        return self.optimize(frames, plans, goal)[:, 0]
+        return self.optimize(self.encode_context(frames), plans, goal)[:, 0]
