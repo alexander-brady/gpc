@@ -87,7 +87,7 @@ class GPCOpt(GPC):
         goal: Tensor[[B, int]] | None = None,
     ) -> Tensor[[B, N, int, int]]:
         """Refine each candidate plan independently by ``num_steps`` steps of gradient ascent
-        on its score.
+        on its score, projecting them back onto the policy's action bounds after each step.
 
         Only the plans are optimized: the controller's parameters are frozen meanwhile, so
         autograd neither accumulates their gradients nor keeps activations to compute them.
@@ -112,6 +112,8 @@ class GPCOpt(GPC):
                 (grad,) = autograd.grad(score, plans)
                 plans.grad = -grad  # optimizers minimize
                 optimizer.step()
+                with torch.no_grad():
+                    plans.copy_(self.policy.clamp_actions(plans))
         return plans.detach()
 
     @torch.no_grad()

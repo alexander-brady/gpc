@@ -28,6 +28,7 @@ class GPCRankOpt[N: IntVar](GPCRank[N], GPCOpt):
         action_horizon (int): Number of action steps to execute before replanning.
         num_samples (Int[N] > 0): Number of action sequences to sample and refine.
         spread (float): Factor by which proposals are pushed away from their mean, for diversity.
+            Spread proposals are clamped to the policy's action bounds.
         num_steps (int >= 0): Number of gradient steps applied to each proposal.
         step_size (float > 0): Learning rate passed to the optimizer.
         optimizer (Callable[..., Optimizer]): Optimizer factory, called as

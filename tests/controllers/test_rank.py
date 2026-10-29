@@ -4,9 +4,20 @@ from torch import nn
 from torch.testing import assert_close
 
 from gpc import GPCRank
-from gpc.models import WorldModelConfig
+from gpc.models import PolicyConfig, WorldModelConfig
 from gpc.objectives import frame_objective, latent_objective
-from tests.fakes import A, B, C, DecodingWorldModel, H, SumObjective, W, make_obs, step
+from tests.fakes import (
+    A,
+    B,
+    C,
+    DecodingWorldModel,
+    FakePolicy,
+    H,
+    SumObjective,
+    W,
+    make_obs,
+    step,
+)
 
 N = 4
 
@@ -44,6 +55,15 @@ def test_propose_scales_deviation_from_mean_by_spread(policy, world_model, objec
     out = spread_rank._propose(frames, proprio)
     assert_close(out, mean + spread * (raw - mean))
     assert_close(out.mean(dim=1, keepdim=True), mean)
+
+
+def test_propose_clamps_spread_to_action_bounds(world_model, objective):
+    config = PolicyConfig(
+        observation_horizon=2, prediction_horizon=3, action_low=1.0, action_high=4.0
+    )
+    rank = GPCRank(FakePolicy(config), world_model, objective, num_samples=N, spread=3.0)
+    plans = rank._propose(*make_obs(k=2))
+    assert plans.min() == 1.0 and plans.max() == 4.0
 
 
 @pytest.mark.parametrize("k", [1, 2, 3])

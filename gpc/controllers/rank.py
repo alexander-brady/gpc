@@ -19,6 +19,7 @@ class GPCRank[N: IntVar](GPC):
         action_horizon (int): Number of action steps to execute before replanning.
         num_samples (Int[N] > 0): Number of action sequences to sample for planning.
         spread (float): Factor by which proposals are pushed away from their mean, for diversity.
+            Spread proposals are clamped to the policy's action bounds.
         rank_first_step (bool): Whether to rank when only a single frame has been observed.
             Otherwise, the first proposal generated is returned.
     """
@@ -55,7 +56,7 @@ class GPCRank[N: IntVar](GPC):
         plans = self.policy.sample(frames.repeat_interleave(n, 0), proprio.repeat_interleave(n, 0))
         plans = plans.reshape(-1, n, *plans.shape[1:])
         mean = plans.mean(dim=1, keepdim=True)
-        return mean + self.spread * (plans - mean)
+        return self.policy.clamp_actions(mean + self.spread * (plans - mean))
 
     @torch.no_grad()
     def rank[B: IntVar](

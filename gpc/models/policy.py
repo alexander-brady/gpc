@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import torch.nn as nn
-from shape_extensions import IntVar
+from shape_extensions import Elements, IntTuple, IntVar
 from torch import Tensor
 
 from gpc.hub import HubMixin
@@ -43,6 +43,25 @@ class Policy[K: IntVar, T: IntVar](ABC, nn.Module, HubMixin):
     def prediction_horizon(self) -> int:
         """Number of actions T the policy plans per pass."""
         return self.config.prediction_horizon
+
+    def clamp_actions[Ds: IntTuple](
+        self, actions: Tensor[[*Elements[Ds], int]]
+    ) -> Tensor[[*Elements[Ds], int]]:
+        """Clamp actions [..., A] to the bounds set by ``action_low`` and ``action_high``.
+
+        Args:
+            actions (Tensor[..., A]): Actions in the policy's normalized space.
+
+        Returns:
+            Tensor[..., A]: The clamped actions, or ``actions`` itself if unbounded.
+        """
+        low, high = self.config.action_low, self.config.action_high
+        if low is None and high is None:
+            return actions
+        return actions.clamp(
+            None if low is None else actions.new_tensor(low),
+            None if high is None else actions.new_tensor(high),
+        )
 
     @abstractmethod
     def sample[B: IntVar](

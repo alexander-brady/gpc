@@ -44,3 +44,19 @@ class PolicyConfig[K: IntVar, T: IntVar](Config):
     """Number of past timesteps to condition on when planning actions."""
     prediction_horizon: Int[T]
     """Number of future timesteps to plan actions for."""
+    action_low: float | list[float] | None = None
+    """Lower bound on actions, shared or per action dimension. ``None`` leaves them unbounded."""
+    action_high: float | list[float] | None = None
+    """Upper bound on actions, shared or per action dimension. ``None`` leaves them unbounded."""
+
+    def __post_init__(self) -> None:
+        low, high = self.action_low, self.action_high
+        if low is None or high is None:
+            return
+        dims = next((len(b) for b in (low, high) if isinstance(b, list)), 1)
+        lows = low if isinstance(low, list) else [low] * dims
+        highs = high if isinstance(high, list) else [high] * dims
+        if len(lows) != len(highs):
+            raise ValueError("action_low and action_high must have the same length.")
+        if any(lo > hi for lo, hi in zip(lows, highs, strict=True)):
+            raise ValueError("action_low must not exceed action_high.")

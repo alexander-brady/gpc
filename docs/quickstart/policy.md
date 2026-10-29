@@ -29,6 +29,14 @@ policy = MyPolicy(PolicyConfig(observation_horizon=2, prediction_horizon=8), act
 - `observation_horizon` (`K`): how many recent observations the policy conditions on.
 - `prediction_horizon` (`T`): how many actions each sampled plan contains.
 
+Optionally, `action_low` and `action_high` bound the action space, each as one value shared
+by every action dimension or a list with one value per dimension. Controllers clamp the plans
+they perturb or optimize to these bounds; leave them unset for an unbounded action space.
+
+```python
+PolicyConfig(observation_horizon=2, prediction_horizon=8, action_low=-1.0, action_high=1.0)
+```
+
 `sample` always receives exactly `observation_horizon` observations. Early in an
 episode, when fewer have been observed, the controller pads the history by repeating
 the earliest observation.

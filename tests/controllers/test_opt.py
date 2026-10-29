@@ -6,9 +6,20 @@ from torch import nn, optim
 from torch.testing import assert_close
 
 from gpc import GPCOpt
-from gpc.models import WorldModelConfig
+from gpc.models import PolicyConfig, WorldModelConfig
 from gpc.objectives import frame_objective
-from tests.fakes import A, B, C, DecodingWorldModel, H, SumObjective, W, make_obs, step
+from tests.fakes import (
+    A,
+    B,
+    C,
+    DecodingWorldModel,
+    FakePolicy,
+    H,
+    SumObjective,
+    W,
+    make_obs,
+    step,
+)
 
 M, LR = 3, 0.5
 
@@ -103,6 +114,15 @@ def test_frame_objective_differentiates_through_decode(policy):
     assert_close(plan, opt._propose(frames, proprio)[:, 0] + LR * C * H * W)
 
 
+def test_optimize_projects_onto_action_bounds(world_model, objective):
+    config = PolicyConfig(observation_horizon=2, prediction_horizon=3, action_high=4.0)
+    opt = GPCOpt(FakePolicy(config), world_model, objective, num_steps=M, step_size=LR)
+    frames, proprio = make_obs(k=2)
+    # SumObjective's gradient is 1 per action, so each step adds LR until the bound is hit
+    expected = (opt._propose(frames, proprio)[:, 0] + M * LR).clamp(max=4.0)
+    assert_close(opt.plan(frames, proprio), expected)
+
+
 def test_custom_optimizer(policy, world_model, objective):
     adam = functools.partial(optim.Adam, betas=(0.0, 0.999))
     opt = GPCOpt(policy, world_model, objective, num_steps=1, step_size=LR, optimizer=adam)
@@ -138,8 +158,8 @@ def test_parameters_frozen_during_optimization_and_restored(policy, world_model,
     assert all(p.requires_grad for p in policy.parameters())
 
 
-def test_parameters_restored_when_optimization_raises(policy, world_model, objective):
-    def failing(futures, goal):
+def test_parameters_restored_when_optimization_raises(policy, world_model):
+    def failing(_futures, _goal):
         raise RuntimeError("boom")
 
     opt = GPCOpt(policy, world_model, failing, num_steps=M)  # pyrefly: ignore[bad-argument-type]
