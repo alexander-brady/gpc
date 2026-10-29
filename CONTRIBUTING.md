@@ -8,7 +8,7 @@ as a command runner. `just` is installed into the virtual environment as a dev d
 ```bash
 git clone https://github.com/alexander-brady/gpc.git
 cd gpc
-uv sync --all-groups      # install the package with the dev and docs groups
+uv sync                   # install the package with the dev and docs groups
 source .venv/bin/activate # put just, ruff, pyrefly and pytest on your PATH
 ```
 
