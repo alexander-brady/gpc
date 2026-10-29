@@ -1,7 +1,7 @@
 # 1. Policy
 
-A policy subclasses [`Policy`][gpc.models.Policy] and implements `sample`, which proposes one
-plan of `T` actions per batch element from the latest observations.
+A policy subclasses [`Policy`][gpc.models.Policy] and implements `sample`, which proposes
+`num_samples` plans of `T` actions per batch element from the latest observations.
 
 ```python
 import torch
@@ -15,10 +15,10 @@ class MyPolicy(Policy):
         super().__init__(config)
         self.action_dim = action_dim
 
-    def sample(self, frames: Tensor, proprio: Tensor) -> Tensor:
-        # frames: [B, K, C, H, W], proprio: [B, K, P] -> actions: [B, T, A]
+    def sample(self, frames: Tensor, proprio: Tensor, *, num_samples: int = 1) -> Tensor:
+        # frames: [B, K, C, H, W], proprio: [B, K, P] -> actions: [B, N, T, A]
         batch = frames.shape[0]
-        return torch.randn(batch, self.prediction_horizon, self.action_dim)
+        return torch.randn(batch, num_samples, self.prediction_horizon, self.action_dim)
 
 
 policy = MyPolicy(PolicyConfig(observation_horizon=2, prediction_horizon=8), action_dim=2)
@@ -43,7 +43,22 @@ the earliest observation.
 
 !!! tip "Sampling should be stochastic"
 
-    The controller calls `sample` once per candidate plan and relies on the variety
+    The controller draws its candidate plans with `num_samples` and relies on the variety
     between them. A deterministic policy gives the controller nothing to choose from.
+
+!!! tip "Encode once, sample many"
+
+    `GPCRank` asks for `num_samples` plans (64 by default) per replanning step. Encode the
+    observations once per batch element and draw every sample from that encoding, rather
+    than repeating the observations `num_samples` times:
+
+    ```python
+    def sample(self, frames, proprio, *, num_samples=1):
+        cond = self.encoder(frames, proprio)  # [B, D], computed once
+        cond = cond.repeat_interleave(num_samples, dim=0)  # [B * N, D]
+        noise = torch.randn(len(cond), self.prediction_horizon, self.action_dim)
+        actions = self.denoise(noise, cond)  # [B * N, T, A]
+        return actions.unflatten(0, (-1, num_samples))  # [B, N, T, A]
+    ```
 
 Next, build a [world model](world-model.md) to simulate these plans.

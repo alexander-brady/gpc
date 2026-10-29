@@ -124,5 +124,5 @@ class GPCOpt(GPC):
         """
         plans = self._sample(frames, proprio)
         if frames.shape[1] == 1 and not self.optimize_first_step:
-            return plans
-        return self.optimize(frames, plans[:, None], goal)[:, 0]
+            return plans[:, 0]
+        return self.optimize(frames, plans, goal)[:, 0]

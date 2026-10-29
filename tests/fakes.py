@@ -13,18 +13,18 @@ B, C, H, W, P, A = 2, 3, 4, 4, 5, 2
 
 
 class FakePolicy(Policy):
-    """Returns a distinct, deterministic plan per batch row: arange(B*T*A) + offset.
-    Records the observations it is sampled with."""
+    """Returns a distinct, deterministic plan per batch row and sample:
+    arange(B*N*T*A) + offset. Records the observations and num_samples it is sampled with."""
 
     def __init__(self, config: PolicyConfig):
         super().__init__(config)
         self.offset = nn.Parameter(torch.zeros(()))
-        self.calls: list[tuple[Tensor, Tensor]] = []
+        self.calls: list[tuple[Tensor, Tensor, int]] = []
 
-    def sample(self, frames: Tensor, proprio: Tensor) -> Tensor:
-        self.calls.append((frames, proprio))
-        b, t = frames.shape[0], self.prediction_horizon
-        return torch.arange(b * t * A, dtype=torch.float).reshape(b, t, A) + self.offset
+    def sample(self, frames: Tensor, proprio: Tensor, *, num_samples: int = 1) -> Tensor:
+        self.calls.append((frames, proprio, num_samples))
+        b, n, t = frames.shape[0], num_samples, self.prediction_horizon
+        return torch.arange(b * n * t * A, dtype=torch.float).reshape(b, n, t, A) + self.offset
 
 
 class FakeWorldModel(WorldModel):

@@ -69,8 +69,10 @@ def test_propose_clamps_spread_to_action_bounds(world_model, objective):
 @pytest.mark.parametrize("k", [1, 2, 3])
 def test_propose_fits_policy_observation_horizon(rank, policy, k):
     rank._propose(*make_obs(k=k))
-    frames, proprio = policy.calls[-1]
-    assert frames.shape[:2] == proprio.shape[:2] == (B * N, policy.observation_horizon)
+    frames, proprio, num_samples = policy.calls[-1]
+    # Observations aren't repeated per sample; the policy draws all N from one batch
+    assert frames.shape[:2] == proprio.shape[:2] == (B, policy.observation_horizon)
+    assert num_samples == N
 
 
 def test_plan_picks_highest_scoring_proposal(rank, objective):
@@ -209,8 +211,8 @@ def test_single_frame_skips_ranking_by_default(policy, world_model, objective):
 
     assert objective.calls == []
     # One policy sample over the batch, returned without spread
-    assert len(policy.calls) == 1 and policy.calls[0][0].shape[0] == B
-    assert_close(plan, rank._sample(frames, proprio))
+    assert len(policy.calls) == 1 and policy.calls[0][2] == 1
+    assert_close(plan, rank._sample(frames, proprio)[:, 0])
 
 
 def test_rank_first_step_ranks_single_frame(policy, world_model, objective):

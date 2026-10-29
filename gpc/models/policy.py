@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import torch.nn as nn
-from shape_extensions import Elements, IntTuple, IntVar
+from shape_extensions import Elements, Int, IntTuple, IntVar
 from torch import Tensor
 
 from gpc.hub import HubMixin
@@ -19,7 +19,7 @@ class Policy[K: IntVar, T: IntVar](ABC, nn.Module, HubMixin):
 
     The policy conditions on the latest K observations and plans the next T actions.
     Sampling should be stochastic: controllers draw several plans per observation
-    sequence and choose among them.
+    sequence with ``num_samples`` and choose among them.
 
     Saved to the ``policy/`` subfolder of a Hub repo with ``save_pretrained`` or
     ``push_to_hub``; ``Policy.from_pretrained`` returns the saved subclass. A subclass with
@@ -64,15 +64,24 @@ class Policy[K: IntVar, T: IntVar](ABC, nn.Module, HubMixin):
         )
 
     @abstractmethod
-    def sample[B: IntVar](
-        self, frames: Tensor[[B, K, int, int, int]], proprio: Tensor[[B, K, int]]
-    ) -> Tensor[[B, T, int]]:
-        """Plan actions from the current step onwards.
+    def sample[B: IntVar, N: IntVar](
+        self,
+        frames: Tensor[[B, K, int, int, int]],
+        proprio: Tensor[[B, K, int]],
+        *,
+        num_samples: Int[N] = 1,
+    ) -> Tensor[[B, N, T, int]]:
+        """Sample ``num_samples`` independent plans per batch element, from the current step
+        onwards.
+
+        Drawing them in one call lets the policy share work between samples of the same
+        observation, such as encoding it once.
 
         Args:
             frames (Tensor[[B, K, C, H, W]]): observed frames o_(t-K+1), ..., o_t
-            proprio (Tensor[[B, K, P]] | None): observed proprioception p_(t-K+1), ..., p_t
+            proprio (Tensor[[B, K, P]]): observed proprioception p_(t-K+1), ..., p_t
+            num_samples (Int[N] > 0): number of plans to sample per batch element
 
         Returns:
-            Tensor[[B, T, A]]: Planned actions.
+            Tensor[[B, N, T, A]]: Planned actions.
         """

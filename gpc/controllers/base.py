@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 from huggingface_hub import constants
 from huggingface_hub.utils import is_jsonable
-from shape_extensions import Elements, IntTuple, IntVar
+from shape_extensions import Elements, Int, IntTuple, IntVar
 from torch import Tensor
 
 from gpc.hub import (
@@ -129,12 +129,17 @@ class GPC(ABC, nn.Module, HubBase):
         return action
 
     @torch.no_grad()
-    def _sample[B: IntVar](
-        self, frames: Tensor[[B, int, int, int, int]], proprio: Tensor[[B, int, int]]
-    ) -> Tensor[[B, int, int]]:
-        """Sample one plan [B, T, A] from the policy, fitting the observations to its horizon."""
+    def _sample[B: IntVar, N: IntVar](
+        self,
+        frames: Tensor[[B, int, int, int, int]],
+        proprio: Tensor[[B, int, int]],
+        num_samples: Int[N] = 1,
+    ) -> Tensor[[B, N, int, int]]:
+        """Sample plans [B, N, T, A] from the policy, fitting the observations to its horizon."""
         h = self.policy.observation_horizon
-        return self.policy.sample(fit_horizon(frames, h), fit_horizon(proprio, h))
+        return self.policy.sample(
+            fit_horizon(frames, h), fit_horizon(proprio, h), num_samples=num_samples
+        )
 
     def encode_context[B: IntVar](self, frames: Tensor[[B, int, int, int, int]]) -> Tensor:
         """Encode the latest observed frames into the world model's context latents.

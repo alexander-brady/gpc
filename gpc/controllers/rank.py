@@ -5,7 +5,6 @@ from torch import Tensor
 from gpc.controllers.base import GPC
 from gpc.models import Policy, WorldModel
 from gpc.objectives import Objective
-from gpc.trajectory import fit_horizon
 
 
 class GPCRank[N: IntVar](GPC):
@@ -49,12 +48,7 @@ class GPCRank[N: IntVar](GPC):
         proprio: Tensor[[B, K, int]],
     ) -> Tensor[[B, N, int, int]]:
         """Sample ``num_samples`` candidate action trajectories [B, N, T, A]."""
-        h = self.policy.observation_horizon
-        frames, proprio = fit_horizon(frames, h), fit_horizon(proprio, h)
-
-        n = self.num_samples
-        plans = self.policy.sample(frames.repeat_interleave(n, 0), proprio.repeat_interleave(n, 0))
-        plans = plans.reshape(-1, n, *plans.shape[1:])
+        plans = self._sample(frames, proprio, self.num_samples)
         mean = plans.mean(dim=1, keepdim=True)
         return self.policy.clamp_actions(mean + self.spread * (plans - mean))
 
@@ -99,5 +93,5 @@ class GPCRank[N: IntVar](GPC):
             Tensor[B, T, A]: the generated plan of actions.
         """
         if frames.shape[1] == 1 and not self.rank_first_step:
-            return self._sample(frames, proprio)
+            return self._sample(frames, proprio)[:, 0]
         return self.rank(frames, self._propose(frames, proprio), goal)

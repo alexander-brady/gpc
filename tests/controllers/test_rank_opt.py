@@ -80,8 +80,8 @@ def test_single_frame_skips_ranking_by_default(policy, world_model, objective):
     plan = rank_opt.plan(frames, proprio)
     assert objective.calls == []
     # One policy sample over the batch, returned without spread
-    assert len(policy.calls) == 1 and policy.calls[0][0].shape[0] == B
-    assert_close(plan, rank_opt._sample(frames, proprio))
+    assert len(policy.calls) == 1 and policy.calls[0][2] == 1
+    assert_close(plan, rank_opt._sample(frames, proprio)[:, 0])
 
 
 def test_rank_first_step_ranks_without_optimizing(policy, world_model, objective):

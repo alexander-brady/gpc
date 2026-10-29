@@ -88,7 +88,7 @@ class GPCRankOpt[N: IntVar](GPCRank[N], GPCOpt):
         """
         first_step = frames.shape[1] == 1
         if first_step and not self.rank_first_step:
-            return self._sample(frames, proprio)
+            return self._sample(frames, proprio)[:, 0]
         plans = self._propose(frames, proprio)
         if not first_step or self.optimize_first_step:
             plans = self.optimize(frames, plans, goal)
