@@ -9,7 +9,6 @@ from torch.optim import SGD, Optimizer
 from gpc.controllers.base import GPC
 from gpc.models import Policy, WorldModel
 from gpc.objectives import Objective
-from gpc.trajectory import fit_horizon
 
 
 @contextmanager
@@ -70,16 +69,6 @@ class GPCOpt(GPC):
         self.optimizer = optimizer
         self.optimize_first_step = optimize_first_step
 
-    @torch.no_grad()
-    def _propose[B: IntVar, K: IntVar](
-        self,
-        frames: Tensor[[B, K, int, int, int]],
-        proprio: Tensor[[B, K, int]],
-    ) -> Tensor[[B, int, int, int]]:
-        """Sample one warm-start action trajectory [B, 1, T, A]."""
-        h = self.policy.observation_horizon
-        return self.policy.sample(fit_horizon(frames, h), fit_horizon(proprio, h))[:, None]
-
     def optimize[B: IntVar, N: IntVar](
         self,
         frames: Tensor[[B, int, int, int, int]],
@@ -133,7 +122,7 @@ class GPCOpt(GPC):
         Returns:
             Tensor[B, T, A]: the optimized plan of actions.
         """
-        plans = self._propose(frames, proprio)
+        plans = self._sample(frames, proprio)
         if frames.shape[1] == 1 and not self.optimize_first_step:
-            return plans[:, 0]
-        return self.optimize(frames, plans, goal)[:, 0]
+            return plans
+        return self.optimize(frames, plans[:, None], goal)[:, 0]

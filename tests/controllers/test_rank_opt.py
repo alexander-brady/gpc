@@ -74,11 +74,14 @@ def test_zero_steps_matches_rank(policy, world_model, objective):
     assert len(objective.calls) == 1
 
 
-def test_single_frame_skips_ranking_by_default(rank_opt, objective):
+def test_single_frame_skips_ranking_by_default(policy, world_model, objective):
+    rank_opt = GPCRankOpt(policy, world_model, objective, num_samples=N, spread=2.0)
     frames, proprio = make_obs(k=1)
     plan = rank_opt.plan(frames, proprio)
     assert objective.calls == []
-    assert_close(plan, rank_opt._propose(frames, proprio)[:, 0])
+    # One policy sample over the batch, returned without spread
+    assert len(policy.calls) == 1 and policy.calls[0][0].shape[0] == B
+    assert_close(plan, rank_opt._sample(frames, proprio))
 
 
 def test_rank_first_step_ranks_without_optimizing(policy, world_model, objective):

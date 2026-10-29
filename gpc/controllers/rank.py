@@ -21,7 +21,7 @@ class GPCRank[N: IntVar](GPC):
         spread (float): Factor by which proposals are pushed away from their mean, for diversity.
             Spread proposals are clamped to the policy's action bounds.
         rank_first_step (bool): Whether to rank when only a single frame has been observed.
-            Otherwise, the first proposal generated is returned.
+            Otherwise, a single plan sampled from the policy is returned.
     """
 
     def __init__(
@@ -98,7 +98,6 @@ class GPCRank[N: IntVar](GPC):
         Returns:
             Tensor[B, T, A]: the generated plan of actions.
         """
-        plans = self._propose(frames, proprio)
         if frames.shape[1] == 1 and not self.rank_first_step:
-            return plans[:, 0]
-        return self.rank(frames, plans, goal)
+            return self._sample(frames, proprio)
+        return self.rank(frames, self._propose(frames, proprio), goal)

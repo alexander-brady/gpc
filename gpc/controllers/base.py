@@ -128,6 +128,14 @@ class GPC(ABC, nn.Module, HubBase):
 
         return action
 
+    @torch.no_grad()
+    def _sample[B: IntVar](
+        self, frames: Tensor[[B, int, int, int, int]], proprio: Tensor[[B, int, int]]
+    ) -> Tensor[[B, int, int]]:
+        """Sample one plan [B, T, A] from the policy, fitting the observations to its horizon."""
+        h = self.policy.observation_horizon
+        return self.policy.sample(fit_horizon(frames, h), fit_horizon(proprio, h))
+
     def encode_context[B: IntVar](self, frames: Tensor[[B, int, int, int, int]]) -> Tensor:
         """Encode the latest observed frames into the world model's context latents.
 

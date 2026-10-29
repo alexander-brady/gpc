@@ -34,7 +34,7 @@ class GPCRankOpt[N: IntVar](GPCRank[N], GPCOpt):
         optimizer (Callable[..., Optimizer]): Optimizer factory, called as
             ``optimizer([plans], lr=step_size)``. Defaults to plain gradient ascent.
         rank_first_step (bool): Whether to rank when only a single frame has been observed.
-            Otherwise, the first proposal is returned.
+            Otherwise, a single plan sampled from the policy is returned.
         optimize_first_step (bool): Whether to optimize when only a single frame has been
             observed. Otherwise, the proposals are ranked unchanged.
     """
@@ -86,10 +86,10 @@ class GPCRankOpt[N: IntVar](GPCRank[N], GPCOpt):
         Returns:
             Tensor[B, T, A]: the best optimized plan of actions.
         """
-        plans = self._propose(frames, proprio)
         first_step = frames.shape[1] == 1
         if first_step and not self.rank_first_step:
-            return plans[:, 0]
+            return self._sample(frames, proprio)
+        plans = self._propose(frames, proprio)
         if not first_step or self.optimize_first_step:
             plans = self.optimize(frames, plans, goal)
         return self.rank(frames, plans, goal)

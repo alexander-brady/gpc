@@ -67,8 +67,8 @@ def test_propose_clamps_spread_to_action_bounds(world_model, objective):
 
 
 @pytest.mark.parametrize("k", [1, 2, 3])
-def test_policy_receives_its_observation_horizon(rank, policy, k):
-    rank.plan(*make_obs(k=k))
+def test_propose_fits_policy_observation_horizon(rank, policy, k):
+    rank._propose(*make_obs(k=k))
     frames, proprio = policy.calls[-1]
     assert frames.shape[:2] == proprio.shape[:2] == (B * N, policy.observation_horizon)
 
@@ -202,12 +202,15 @@ def test_latent_objective_receives_latents(policy, world_model):
     assert objective.calls[0][0].shape[3:] == (1,)
 
 
-def test_single_frame_skips_ranking_by_default(rank, objective):
+def test_single_frame_skips_ranking_by_default(policy, world_model, objective):
+    rank = GPCRank(policy, world_model, objective, num_samples=N, spread=2.0)
     frames, proprio = make_obs(k=1)
     plan = rank.plan(frames, proprio)
 
     assert objective.calls == []
-    assert_close(plan, rank._propose(frames, proprio)[:, 0])
+    # One policy sample over the batch, returned without spread
+    assert len(policy.calls) == 1 and policy.calls[0][0].shape[0] == B
+    assert_close(plan, rank._sample(frames, proprio))
 
 
 def test_rank_first_step_ranks_single_frame(policy, world_model, objective):
