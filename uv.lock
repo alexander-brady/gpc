@@ -258,6 +258,7 @@ wheels = [
 name = "gpclib"
 version = "0.2.0"
 source = { editable = "." }
+default-groups = ["dev", "docs"]
 dependencies = [
     { name = "huggingface-hub" },
     { name = "pyrefly-torch-stubs" },
