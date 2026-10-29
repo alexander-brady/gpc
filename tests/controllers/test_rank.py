@@ -76,6 +76,25 @@ def test_plan_ties_resolve_to_first_maximum(policy, world_model):
     assert_close(rank.plan(frames, proprio), rank._propose(frames, proprio)[:, 0])
 
 
+def test_plan_never_picks_nan_score(policy, world_model):
+    def nan_last(futures, goal):
+        scores = futures.flatten(2).sum(dim=-1)
+        scores[:, -1] = torch.nan
+        return scores
+
+    rank = GPCRank(policy, world_model, nan_last, num_samples=N, spread=1.0)
+    frames, proprio = make_obs(k=2)
+    # The last proposal would score highest; with it NaN, the next-best is chosen
+    assert_close(rank.plan(frames, proprio), rank._propose(frames, proprio)[:, -2])
+
+
+def test_plan_all_nan_scores_returns_first_proposal(policy, world_model):
+    all_nan = lambda f, g: torch.full(f.shape[:2], torch.nan)  # noqa: E731
+    rank = GPCRank(policy, world_model, all_nan, num_samples=N)  # pyrefly: ignore[bad-argument-type]
+    frames, proprio = make_obs(k=2)
+    assert_close(rank.plan(frames, proprio), rank._propose(frames, proprio)[:, 0])
+
+
 def test_objective_receives_latent_futures(rank, objective, policy):
     rank.plan(*make_obs(k=2))
     futures, _, _ = objective.calls[0]

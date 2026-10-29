@@ -72,10 +72,12 @@ class GPCRank[N: IntVar](GPC):
             goal (Tensor[B, GoalDim] | None): the optional goal to evaluate against
 
         Returns:
-            Tensor[B, T, A]: the highest-scoring plan. The first maximum wins ties.
+            Tensor[B, T, A]: the highest-scoring plan. The first maximum wins ties, 
+                and NaN scores are treated as -inf.
         """
         futures = self.simulate(self.encode_context(frames), plans)
-        best = self.score(futures, goal, plans).argmax(dim=1)
+        scores = self.score(futures, goal, plans)
+        best = scores.masked_fill(scores.isnan(), -torch.inf).argmax(dim=1)
         return plans[torch.arange(plans.shape[0]), best]
 
     @torch.no_grad()
