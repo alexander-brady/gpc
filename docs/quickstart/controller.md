@@ -3,11 +3,11 @@
 A controller decides how the policy, world model and objective work together to pick a
 plan. GPC defines a few strategies:
 
-| Controller | Strategy | Status |
-| ---------- | -------- | ------ |
-| [`GPCRank`][gpc.GPCRank] | Sample many plans from the policy and keep the best-scoring one. | Available |
-| [`GPCOpt`][gpc.GPCOpt] | Refine a sampled plan by gradient ascent on the objective through the world model. | Available |
-| `GPCRankOpt` | Rank sampled plans, then refine the best one. | Planned |
+| Controller | Strategy |
+| ---------- | -------- |
+| [`GPCRank`][gpc.GPCRank] | Sample many plans from the policy and keep the best-scoring one. |
+| [`GPCOpt`][gpc.GPCOpt] | Refine a sampled plan by gradient ascent on the objective through the world model. |
+| [`GPCRankOpt`][gpc.GPCRankOpt] | Refine many sampled plans by gradient ascent, then keep the best-scoring one. |
 
 This guide uses `GPCRank`, the simplest of the three.
 
@@ -60,6 +60,31 @@ controller = GPCOpt(
 | `step_size` | `5e-3` | Learning rate passed to the optimizer. |
 | `optimizer` | `torch.optim.SGD` | Optimizer factory, called as `optimizer([plan], lr=step_size)`. Use e.g. `torch.optim.Adam`, or a `functools.partial` for other settings. |
 | `optimize_first_step` | `False` | Whether to optimize when only one frame has been observed. If `False`, the sampled plan is used. |
+
+### Ranking optimized plans
+
+[`GPCRankOpt`][gpc.GPCRankOpt] combines the two: it samples `num_samples` plans, refines
+each one as [`GPCOpt`][gpc.GPCOpt] does, and keeps the one that scores best after
+refinement. Starting from several samples makes it less likely to get stuck in a poor local
+optimum, but each replanning step costs `num_samples * (num_steps + 1)` world model rollouts.
+
+```python
+from gpc import GPCRankOpt
+
+controller = GPCRankOpt(
+    policy,
+    world_model,
+    objective,
+    action_horizon=4,
+    num_samples=16,
+    num_steps=25,
+    step_size=5e-3,
+)
+```
+
+It takes every argument of [`GPCRank`][gpc.GPCRank] and [`GPCOpt`][gpc.GPCOpt] above,
+with `num_samples` defaulting to `16`. On the first step, `rank_first_step` controls
+whether the plans are ranked, and `optimize_first_step` whether they are refined first.
 
 !!! warning "Make the world model deterministic"
 

@@ -32,7 +32,7 @@ def test_rejects_non_positive_step_size(policy, world_model, objective, step_siz
 
 def test_propose_shape(opt, policy):
     plan = opt._propose(*make_obs(k=2))
-    assert plan.shape == (B, policy.prediction_horizon, A)
+    assert plan.shape == (B, 1, policy.prediction_horizon, A)
 
 
 @pytest.mark.parametrize("k", [1, 2, 3])
@@ -46,7 +46,7 @@ def test_plan_ascends_the_objective(opt):
     frames, proprio = make_obs(k=2)
     plan = opt.plan(frames, proprio)
     # SumObjective over FakeWorldModel sums the plan, so every action's gradient is 1
-    assert_close(plan, opt._propose(frames, proprio) + M * LR)
+    assert_close(plan, opt._propose(frames, proprio)[:, 0] + M * LR)
 
 
 def test_objective_called_once_per_step(opt, objective):
@@ -62,7 +62,7 @@ def test_objective_called_once_per_step(opt, objective):
 def test_zero_steps_returns_proposal(policy, world_model, objective):
     opt = GPCOpt(policy, world_model, objective, num_steps=0)
     frames, proprio = make_obs(k=2)
-    assert_close(opt.plan(frames, proprio), opt._propose(frames, proprio))
+    assert_close(opt.plan(frames, proprio), opt._propose(frames, proprio)[:, 0])
     assert objective.calls == []
 
 
@@ -87,7 +87,7 @@ def test_plan_objective_gradient_includes_plans(policy, world_model):
     opt = GPCOpt(policy, world_model, Effort(), num_steps=1, step_size=0.25)
     frames, proprio = make_obs(k=2)
     # One step on -|a|^2 with step 0.25 halves every action
-    assert_close(opt.plan(frames, proprio), opt._propose(frames, proprio) / 2)
+    assert_close(opt.plan(frames, proprio), opt._propose(frames, proprio)[:, 0] / 2)
 
 
 def test_frame_objective_differentiates_through_decode(policy):
@@ -100,7 +100,7 @@ def test_frame_objective_differentiates_through_decode(policy):
 
     assert objective.calls[0][0].shape[3:] == (C, H, W)
     # Each latent is broadcast to C*H*W pixels
-    assert_close(plan, opt._propose(frames, proprio) + LR * C * H * W)
+    assert_close(plan, opt._propose(frames, proprio)[:, 0] + LR * C * H * W)
 
 
 def test_custom_optimizer(policy, world_model, objective):
@@ -108,7 +108,7 @@ def test_custom_optimizer(policy, world_model, objective):
     opt = GPCOpt(policy, world_model, objective, num_steps=1, step_size=LR, optimizer=adam)
     frames, proprio = make_obs(k=2)
     # Adam's first step moves each parameter by ~lr in the gradient's sign
-    assert_close(opt.plan(frames, proprio), opt._propose(frames, proprio) + LR)
+    assert_close(opt.plan(frames, proprio), opt._propose(frames, proprio)[:, 0] + LR)
 
 
 def test_world_model_parameters_receive_no_gradients(policy, world_model, objective):
@@ -123,7 +123,7 @@ def test_single_frame_skips_optimization_by_default(opt, objective):
     frames, proprio = make_obs(k=1)
     plan = opt.plan(frames, proprio)
     assert objective.calls == []
-    assert_close(plan, opt._propose(frames, proprio))
+    assert_close(plan, opt._propose(frames, proprio)[:, 0])
 
 
 def test_optimize_first_step_optimizes_single_frame(policy, world_model, objective):

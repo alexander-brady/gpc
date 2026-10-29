@@ -58,6 +58,27 @@ class GPCRank[N: IntVar](GPC):
         return mean + self.spread * (plans - mean)
 
     @torch.no_grad()
+    def rank[B: IntVar](
+        self,
+        frames: Tensor[[B, int, int, int, int]],
+        plans: Tensor[[B, int, int, int]],
+        goal: Tensor[[B, int]] | None = None,
+    ) -> Tensor[[B, int, int]]:
+        """Simulate each candidate plan and return the one whose future scores highest.
+
+        Args:
+            frames (Tensor[B, K, C, H, W]): observed frames to condition on
+            plans (Tensor[B, N, T, A]): candidate plans to rank
+            goal (Tensor[B, GoalDim] | None): the optional goal to evaluate against
+
+        Returns:
+            Tensor[B, T, A]: the highest-scoring plan. The first maximum wins ties.
+        """
+        futures = self.simulate(self.encode_context(frames), plans)
+        best = self.score(futures, goal, plans).argmax(dim=1)
+        return plans[torch.arange(plans.shape[0]), best]
+
+    @torch.no_grad()
     def plan[B: IntVar, K: IntVar](
         self,
         frames: Tensor[[B, K, int, int, int]],
@@ -77,7 +98,4 @@ class GPCRank[N: IntVar](GPC):
         plans = self._propose(frames, proprio)
         if frames.shape[1] == 1 and not self.rank_first_step:
             return plans[:, 0]
-        # The first maximum wins ties.
-        futures = self.simulate(self.encode_context(frames), plans)
-        best = self.score(futures, goal, plans).argmax(dim=1)
-        return plans[torch.arange(plans.shape[0]), best]
+        return self.rank(frames, plans, goal)

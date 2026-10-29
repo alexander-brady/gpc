@@ -61,10 +61,10 @@ class GPCOpt(GPC):
         self,
         frames: Tensor[[B, K, int, int, int]],
         proprio: Tensor[[B, K, int]],
-    ) -> Tensor[[B, int, int]]:
-        """Sample one warm-start action trajectory [B, T, A]."""
+    ) -> Tensor[[B, int, int, int]]:
+        """Sample one warm-start action trajectory [B, 1, T, A]."""
         h = self.policy.observation_horizon
-        return self.policy.sample(fit_horizon(frames, h), fit_horizon(proprio, h))
+        return self.policy.sample(fit_horizon(frames, h), fit_horizon(proprio, h))[:, None]
 
     def optimize[B: IntVar, N: IntVar](
         self,
@@ -116,7 +116,7 @@ class GPCOpt(GPC):
         Returns:
             Tensor[B, T, A]: the optimized plan of actions.
         """
-        plan = self._propose(frames, proprio)
+        plans = self._propose(frames, proprio)
         if frames.shape[1] == 1 and not self.optimize_first_step:
-            return plan
-        return self.optimize(frames, plan[:, None], goal)[:, 0]
+            return plans[:, 0]
+        return self.optimize(frames, plans, goal)[:, 0]
